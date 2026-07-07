@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>film sim</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0e0e0e;
+      color: #d8d8d8;
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      padding: 48px 24px 80px;
+    }
+
+    .wrap { max-width: 880px; margin: 0 auto; }
+
+    /* ── header ── */
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 40px;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 400;
+      letter-spacing: 0.35em;
+      color: #f2f2f2;
+    }
+
+    /* ── mode toggle ── */
+    .mode-toggle {
+      display: flex;
+      gap: 4px;
+      background: #181818;
+      border: 1px solid #2a2a2a;
+      border-radius: 5px;
+      padding: 3px;
+    }
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: #555;
+      font-family: inherit;
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: lowercase;
+      padding: 6px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .mode-btn.active {
+      background: #242424;
+      color: #d8d8d8;
+    }
+
+    /* ── upload zones ── */
+    .upload-zone {
+      border: 1px dashed #3a3a3a;
+      border-radius: 6px;
+      padding: 64px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.18s, background 0.18s;
+      margin-bottom: 40px;
+    }
+    .upload-zone:hover,
+    .upload-zone.drag-over { border-color: #666; background: #161616; }
+    .upload-zone.has-file  { padding: 16px; border-style: solid; border-color: #444; }
+
+    .upload-hint { color: #555; font-size: 0.85rem; letter-spacing: 0.05em; }
+    .upload-sub  { color: #3a3a3a; font-size: 0.72rem; margin-top: 6px; }
+
+    #preview-img {
+      max-width: 100%; max-height: 320px;
+      display: none; border-radius: 3px;
+    }
+    .video-name {
+      font-size: 0.82rem; color: #888;
+      letter-spacing: 0.05em; display: none;
+    }
+
+    input[type="file"] { display: none; }
+
+    /* ── label ── */
+    .label {
+      font-size: 0.68rem; letter-spacing: 0.22em;
+      color: #4a4a4a; text-transform: uppercase; margin-bottom: 14px;
+    }
+
+    /* ── stock grid ── */
+    .stock-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+    .stock-card {
+      border: 1px solid #222; border-radius: 5px;
+      padding: 15px 16px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .stock-card:hover    { border-color: #4a4a4a; background: #161616; }
+    .stock-card.selected { border-color: #c9a86c; background: #1c1810; }
+    .sn { font-size: 0.88rem; font-weight: 700; color: #e0e0e0; letter-spacing: 0.04em; margin-bottom: 5px; }
+    .sv { font-size: 0.70rem; color: #5a5a5a; line-height: 1.45; margin-bottom: 9px; }
+    .st {
+      font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 3px; display: inline-block;
+    }
+    .st.color { background: #151e12; color: #6a9a58; border: 1px solid #2e4a22; }
+    .st.bw    { background: #1a1a1a; color: #777;    border: 1px solid #383838; }
+
+    /* ── develop button ── */
+    #develop-btn {
+      width: 100%; padding: 15px;
+      background: #c9a86c; color: #0e0e0e; border: none; border-radius: 5px;
+      font-family: inherit; font-size: 0.88rem;
+      letter-spacing: 0.28em; text-transform: lowercase;
+      cursor: pointer; transition: background 0.15s, opacity 0.15s;
+      margin-bottom: 16px;
+    }
+    #develop-btn:disabled              { opacity: 0.22; cursor: not-allowed; background: #777; }
+    #develop-btn:not(:disabled):hover  { background: #d9b87c; }
+    #develop-btn.loading               { opacity: 0.55; cursor: wait; }
+
+    /* ── error ── */
+    #error-msg {
+      display: none;
+      background: #200f0f; border: 1px solid #5a1a1a; color: #cc6666;
+      border-radius: 4px; padding: 12px 16px;
+      font-size: 0.78rem; letter-spacing: 0.05em; margin-bottom: 20px;
+    }
+
+    /* ── photo result ── */
+    #photo-result { display: none; }
+
+    #spinner {
+      display: none; text-align: center;
+      font-size: 0.75rem; letter-spacing: 0.22em; color: #4a4a4a;
+      padding: 8px 0 24px;
+    }
+
+    .comparison {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px; margin-bottom: 24px;
+    }
+    .pane-label {
+      font-size: 0.62rem; letter-spacing: 0.18em;
+      color: #4a4a4a; text-transform: uppercase; margin-bottom: 8px;
+    }
+    .comparison img { width: 100%; border-radius: 3px; display: block; }
+
+    /* ── video result ── */
+    #video-result { display: none; }
+
+    .progress-wrap {
+      background: #1a1a1a; border-radius: 3px;
+      height: 3px; width: 100%; margin-bottom: 10px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: #c9a86c;
+      width: 0%; transition: width 0.4s ease;
+    }
+    .progress-text {
+      font-size: 0.70rem; letter-spacing: 0.15em;
+      color: #4a4a4a; margin-bottom: 24px; min-height: 1.2em;
+    }
+
+    #preview-frame {
+      width: 100%; border-radius: 3px;
+      display: none; margin-bottom: 20px;
+    }
+
+    /* ── download / shared ── */
+    .dl-btn {
+      display: inline-block; padding: 11px 30px;
+      background: transparent; color: #c9a86c; border: 1px solid #c9a86c;
+      border-radius: 5px; font-family: inherit; font-size: 0.82rem;
+      letter-spacing: 0.2em; text-transform: lowercase;
+      text-decoration: none; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .dl-btn:hover { background: #c9a86c; color: #0e0e0e; }
+
+    @media (max-width: 580px) {
+      .stock-grid { grid-template-columns: repeat(2, 1fr); }
+      .comparison { grid-template-columns: 1fr; }
+      .header { flex-direction: column; gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>film sim</h1>
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="photo">photo</button>
+      <button class="mode-btn"        data-mode="video">video</button>
+    </div>
+  </div>
+
+  <!-- ── photo upload ── -->
+  <div id="photo-section">
+    <div class="upload-zone" id="photo-upload-zone">
+      <img id="preview-img" alt="preview">
+      <div id="photo-upload-prompt">
+        <p class="upload-hint">drag &amp; drop or click to upload</p>
+        <p class="upload-sub">jpg &middot; png &middot; webp &middot; tiff</p>
+      </div>
+      <input type="file" id="photo-file-input" accept="image/*">
+    </div>
+  </div>
+
+  <!-- ── video upload ── -->
+  <div id="video-section" style="display:none">
+    <div class="upload-zone" id="video-upload-zone">
+      <p class="video-name" id="video-name"></p>
+      <div id="video-upload-prompt">
+        <p class="upload-hint">drag &amp; drop or click to upload video</p>
+        <p class="upload-sub">mp4 &middot; mov &middot; m4v &middot; mkv &middot; avi &middot; webm &middot; wmv &middot; mts</p>
+        <p class="upload-sub" style="margin-top:10px;color:#2e2e2e">
+          note — audio is not preserved &middot; clips over ~60s may take several minutes
+        </p>
+      </div>
+      <input type="file" id="video-file-input" accept="video/*,.mp4,.mov,.m4v,.mkv,.avi,.webm,.wmv,.flv,.mts,.m2ts,.3gp">
+    </div>
+  </div>
+
+  <!-- ── shared stock selector ── -->
+  <p class="label">film stock</p>
+  <div class="stock-grid">
+    <div class="stock-card" data-stock="portra200">
+      <div class="sn">Portra 200</div>
+      <div class="sv">warm skin tones, soft highlights</div>
+      <span class="st color">color</span>
+    </div>
+    <div class="stock-card" data-stock="portra800">
+      <div class="sn">Portra 800</div>
+      <div class="sv">warmer, grainier Portra</div>
+      <span class="st color">color</span>
+    </div>
+    <div class="stock-card" data-stock="ektar100">
+      <div class="sn">Ektar 100</div>
+      <div class="sv">punchy saturated colors</div>
+      <span class="st color">color</span>
+    </div>
+    <div class="stock-card" data-stock="cinestill800t">
+      <div class="sn">Cinestill 800T</div>
+      <div class="sv">teal shadows, red halation</div>
+      <span class="st color">color</span>
+    </div>
+    <div class="stock-card" data-stock="velvia50">
+      <div class="sn">Velvia 50</div>
+      <div class="sv">electric saturation, deep blacks</div>
+      <span class="st color">color</span>
+    </div>
+    <div class="stock-card" data-stock="hp5_1600">
+      <div class="sn">HP5 @ 1600</div>
+      <div class="sv">B&amp;W, chunky grain, high contrast</div>
+      <span class="st bw">b&amp;w</span>
+    </div>
+  </div>
+
+  <button id="develop-btn" disabled>develop</button>
+
+  <div id="error-msg"></div>
+
+  <!-- ── photo result ── -->
+  <div id="photo-result">
+    <div id="spinner">developing&#8230;</div>
+    <div id="comparison-wrap" style="display:none">
+      <div class="comparison">
+        <div>
+          <p class="pane-label">original</p>
+          <img id="original-display" alt="original">
+        </div>
+        <div>
+          <p class="pane-label">processed</p>
+          <img id="result-img" alt="result">
+        </div>
+      </div>
+      <a id="photo-dl-btn" class="dl-btn" download="film_sim.jpg">download</a>
+    </div>
+  </div>
+
+  <!-- ── video result ── -->
+  <div id="video-result">
+    <div class="progress-wrap"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-text" id="progress-text"></div>
+    <img id="preview-frame" alt="preview frame">
+    <div id="video-dl-wrap" style="display:none">
+      <a id="video-dl-btn" class="dl-btn">download video</a>
+    </div>
+  </div>
+
+</div><!-- .wrap -->
+
+<script>
+  // ── state ──────────────────────────────────────────────────────────────────
+  let currentMode   = 'photo';
+  let photoFile     = null;
+  let videoFile     = null;
+  let selectedStock = null;
+  let pollTimer     = null;
+  let currentJobId  = null;
+  let originalURL   = null;
+
+  // ── elements ────────────────────────────────────────────────────────────────
+  const developBtn       = document.getElementById('develop-btn');
+  const errorMsg         = document.getElementById('error-msg');
+
+  const photoSection     = document.getElementById('photo-section');
+  const photoUploadZone  = document.getElementById('photo-upload-zone');
+  const photoFileInput   = document.getElementById('photo-file-input');
+  const previewImg       = document.getElementById('preview-img');
+  const photoPrompt      = document.getElementById('photo-upload-prompt');
+  const photoResult      = document.getElementById('photo-result');
+  const spinner          = document.getElementById('spinner');
+  const comparisonWrap   = document.getElementById('comparison-wrap');
+  const originalDisplay  = document.getElementById('original-display');
+  const resultImg        = document.getElementById('result-img');
+  const photoDlBtn       = document.getElementById('photo-dl-btn');
+
+  const videoSection     = document.getElementById('video-section');
+  const videoUploadZone  = document.getElementById('video-upload-zone');
+  const videoFileInput   = document.getElementById('video-file-input');
+  const videoNameEl      = document.getElementById('video-name');
+  const videoPrompt      = document.getElementById('video-upload-prompt');
+  const videoResult      = document.getElementById('video-result');
+  const progressFill     = document.getElementById('progress-fill');
+  const progressText     = document.getElementById('progress-text');
+  const previewFrame     = document.getElementById('preview-frame');
+  const videoDlWrap      = document.getElementById('video-dl-wrap');
+  const videoDlBtn       = document.getElementById('video-dl-btn');
+
+  // ── mode toggle ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.mode === currentMode) return;
+      currentMode = btn.dataset.mode;
+      document.querySelectorAll('.mode-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === currentMode));
+      photoSection.style.display  = currentMode === 'photo' ? '' : 'none';
+      videoSection.style.display  = currentMode === 'video' ? '' : 'none';
+      photoResult.style.display   = 'none';
+      videoResult.style.display   = 'none';
+      hideError();
+      updateBtn();
+    });
+  });
+
+  // ── photo upload ─────────────────────────────────────────────────────────────
+  photoUploadZone.addEventListener('click', () => photoFileInput.click());
+  photoFileInput.addEventListener('change', e => { if (e.target.files[0]) loadPhoto(e.target.files[0]); });
+
+  photoUploadZone.addEventListener('dragover',  e => { e.preventDefault(); photoUploadZone.classList.add('drag-over'); });
+  photoUploadZone.addEventListener('dragleave', ()  => photoUploadZone.classList.remove('drag-over'));
+  photoUploadZone.addEventListener('drop', e => {
+    e.preventDefault(); photoUploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadPhoto(e.dataTransfer.files[0]);
+  });
+
+  function loadPhoto(file) {
+    if (originalURL) URL.revokeObjectURL(originalURL);
+    photoFile   = file;
+    originalURL = URL.createObjectURL(file);
+    previewImg.src           = originalURL;
+    previewImg.style.display = 'block';
+    originalDisplay.src      = originalURL;
+    photoPrompt.style.display = 'none';
+    photoUploadZone.classList.add('has-file');
+    photoResult.style.display   = 'none';
+    comparisonWrap.style.display = 'none';
+    spinner.style.display        = 'none';
+    hideError();
+    updateBtn();
+  }
+
+  // ── video upload ─────────────────────────────────────────────────────────────
+  videoUploadZone.addEventListener('click', () => videoFileInput.click());
+  videoFileInput.addEventListener('change', e => { if (e.target.files[0]) loadVideo(e.target.files[0]); });
+
+  videoUploadZone.addEventListener('dragover',  e => { e.preventDefault(); videoUploadZone.classList.add('drag-over'); });
+  videoUploadZone.addEventListener('dragleave', ()  => videoUploadZone.classList.remove('drag-over'));
+  videoUploadZone.addEventListener('drop', e => {
+    e.preventDefault(); videoUploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadVideo(e.dataTransfer.files[0]);
+  });
+
+  function loadVideo(file) {
+    videoFile = file;
+    videoNameEl.textContent    = file.name;
+    videoNameEl.style.display  = 'block';
+    videoPrompt.style.display  = 'none';
+    videoUploadZone.classList.add('has-file');
+    resetVideoResult();
+    hideError();
+    updateBtn();
+  }
+
+  // ── stock selection ───────────────────────────────────────────────────────────
+  document.querySelectorAll('.stock-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.stock-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedStock = card.dataset.stock;
+      updateBtn();
+    });
+  });
+
+  function updateBtn() {
+    const ready = selectedStock &&
+      (currentMode === 'photo' ? photoFile : videoFile);
+    developBtn.disabled = !ready;
+  }
+
+  // ── develop dispatch ──────────────────────────────────────────────────────────
+  developBtn.addEventListener('click', () => {
+    if (currentMode === 'photo') developPhoto();
+    else                         developVideo();
+  });
+
+  // ── photo processing ──────────────────────────────────────────────────────────
+  async function developPhoto() {
+    developBtn.disabled = true;
+    developBtn.classList.add('loading');
+    developBtn.textContent = 'developing…';
+    spinner.style.display  = 'block';
+    photoResult.style.display   = 'block';
+    comparisonWrap.style.display = 'none';
+    hideError();
+
+    const fd = new FormData();
+    fd.append('image', photoFile);
+    fd.append('stock', selectedStock);
+
+    try {
+      const res = await fetch('/process', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      resultImg.src        = url;
+      photoDlBtn.href      = url;
+      photoDlBtn.download  = `${selectedStock}_film_sim.jpg`;
+      comparisonWrap.style.display = 'block';
+    } catch (err) {
+      showError('processing failed: ' + err.message);
+      photoResult.style.display = 'none';
+    } finally {
+      spinner.style.display   = 'none';
+      developBtn.classList.remove('loading');
+      developBtn.textContent  = 'develop';
+      updateBtn();
+    }
+  }
+
+  // ── video processing ──────────────────────────────────────────────────────────
+  async function developVideo() {
+    if (pollTimer) clearInterval(pollTimer);
+
+    developBtn.disabled = true;
+    developBtn.classList.add('loading');
+    developBtn.textContent = 'developing…';
+    videoResult.style.display = 'block';
+    resetVideoResult();
+    setProgress(0, 'uploading…');
+    hideError();
+
+    const fd = new FormData();
+    fd.append('video', videoFile);
+    fd.append('stock', selectedStock);
+
+    try {
+      const res = await fetch('/process_video', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const { job_id, error } = await res.json();
+      if (error) throw new Error(error);
+      currentJobId = job_id;
+      pollTimer = setInterval(() => pollJob(job_id), 2000);
+    } catch (err) {
+      showError('upload failed: ' + err.message);
+      developBtn.classList.remove('loading');
+      developBtn.textContent = 'develop';
+      updateBtn();
+    }
+  }
+
+  async function pollJob(job_id) {
+    try {
+      const res = await fetch(`/video_job/${job_id}`);
+      const job = await res.json();
+
+      if (job.status === 'done') {
+        clearInterval(pollTimer);
+        setProgress(1, 'done');
+        // Show preview frame
+        previewFrame.src           = `/preview/${job_id}?t=${Date.now()}`;
+        previewFrame.style.display = 'block';
+        // Show download
+        videoDlBtn.href            = `/download_video/${job_id}`;
+        videoDlBtn.download        = `${selectedStock}_film_sim.mp4`;
+        videoDlWrap.style.display  = 'block';
+        developBtn.classList.remove('loading');
+        developBtn.textContent = 'develop';
+        updateBtn();
+      } else if (job.status === 'error') {
+        clearInterval(pollTimer);
+        showError('processing error: ' + (job.error || 'unknown'));
+        developBtn.classList.remove('loading');
+        developBtn.textContent = 'develop';
+        updateBtn();
+      } else {
+        setProgress(job.progress || 0, job.phase || '…');
+      }
+    } catch (err) {
+      // network hiccup — keep polling
+    }
+  }
+
+  function setProgress(pct, text) {
+    progressFill.style.width = (Math.round(pct * 1000) / 10) + '%';
+    progressText.textContent = text;
+  }
+
+  function resetVideoResult() {
+    progressFill.style.width   = '0%';
+    progressText.textContent   = '';
+    previewFrame.style.display = 'none';
+    previewFrame.src           = '';
+    videoDlWrap.style.display  = 'none';
+  }
+
+  // ── error helpers ─────────────────────────────────────────────────────────────
+  function showError(msg) {
+    errorMsg.textContent   = msg;
+    errorMsg.style.display = 'block';
+  }
+  function hideError() {
+    errorMsg.style.display = 'none';
+  }
+</script>
+</body>
+</html>
