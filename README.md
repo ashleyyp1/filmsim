@@ -2,9 +2,6 @@
 
 Physics-based film stock simulator for photos and video. Upload an image or video clip, pick a film stock, and get back a result that models the actual photochemistry — not a LUT or a Lightroom preset.
 
-**[Try it live →]()**  
-*(link coming soon)*
-
 ---
 
 ## What makes it different
